@@ -1,0 +1,3 @@
+filepath,age,sex
+./sample-data/sample1-full-night-eeg.h5,35,1
+./sample-data/sample1-full-night-eeg.edf,35,1
