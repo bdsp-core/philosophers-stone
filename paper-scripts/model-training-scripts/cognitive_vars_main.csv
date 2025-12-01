@@ -1,0 +1,8 @@
+mgh-cog,mesa,fhs,sof,mros,koges,mgh-mmse
+cog_fluid_mgh-cog,cog_total_mesa,cog_fluid_fhs,cog_fluid_sof,cog_fluid_mros,cog_fluid_koges,np_mgh-mmse-mmse
+cog_crystallized_mgh-cog,np_dsct_visit1_z,cog_crystallized_fhs,cog_crystallized_sof,cog_crystallized_mros,cog_crystallized_koges,
+cog_total_mgh-cog,np_casi_visit1_z,cog_total_fhs,cog_total_sof,cog_total_mros,cog_total_koges,
+np_sequencememory,np_dgtfor_visit1_z,np_lm_story,np_sof-mmse,np_tbsecon,np_k_tma_time,
+np_processingspeed,np_dgtbck_visit1_z,np_lmd,np_trlsb,np_tmnaming,np_k_vrd_tot,
+np_dimensional,,np_mmse-13,np_smmse,np_dvtmscor,np_k_ds1_tot,
+np_oralreadingrecognition,,np_trailsa,,np_tmmscore,np_k_stroop1,
