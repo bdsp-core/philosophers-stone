@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+from filelock import FileLock
 import os
 import time
 from pathlib import Path
@@ -145,6 +146,13 @@ def _ensure_dir(path: Optional[Union[str, Path]]) -> Optional[Path]:
     return resolved
 
 
+def _write_summary_csv(summary_path: Path, df: pd.DataFrame) -> None:
+    lock_path = summary_path.with_suffix(summary_path.suffix + ".lock")
+    lock = FileLock(str(lock_path))
+    with lock:
+        df.to_csv(summary_path, index=False)
+
+
 # ---------- Public API ---------- #
 def run_philosopher(
     manifest: ManifestLike,
@@ -255,6 +263,17 @@ def run_philosopher(
 
     iterator: Iterable = tqdm(dataloader, desc=f"\033[38;5;220m{tqdm_desc}") if show_progress else dataloader
     results = []
+    existing_summary: Optional[pd.DataFrame] = None
+    summary_path: Optional[Path] = None
+    if save_summary and summary_dir is not None:
+        summary_path = summary_dir / "phi_results.csv"
+        if summary_path.exists():
+            try:
+                existing_summary = pd.read_csv(summary_path)
+            except Exception:
+                existing_summary = pd.DataFrame()
+        else:
+            existing_summary = pd.DataFrame()
 
     for batch in iterator:
         specs, age_z, sex, file_id, age_raw, filepath = batch
@@ -309,6 +328,14 @@ def run_philosopher(
             row[f"lhl_{idx}"] = float(value)
 
         results.append(row)
+        if save_summary and summary_dir is not None and summary_path is not None:
+            summary_df = pd.DataFrame(results)
+            if existing_summary is not None and not existing_summary.empty:
+                combined = pd.concat([existing_summary, summary_df], ignore_index=True)
+            else:
+                combined = summary_df
+            combined = combined.drop_duplicates(subset=["filepath"], keep="last")
+            _write_summary_csv(summary_path, combined)
 
         if save_plots and figure_dir is not None:
             hypnogram = stage.squeeze(0)
@@ -360,18 +387,19 @@ def run_philosopher(
         iterator.close()
 
     summary_df = pd.DataFrame(results)
-    summary_path: Optional[Path] = None
-    if save_summary and summary_dir is not None and not summary_df.empty:
-        summary_path = summary_dir / "phi_results.csv"
-        if summary_path.exists():
-            try:
-                existing = pd.read_csv(summary_path)
-            except Exception:
-                existing = pd.DataFrame()
-            combined = pd.concat([existing, summary_df], ignore_index=True)
-            combined = combined.drop_duplicates(subset=["filepath"], keep="last")
-            summary_df = combined
-        summary_df.to_csv(summary_path, index=False)
+    if (
+        save_summary
+        and summary_dir is not None
+        and summary_path is not None
+        and not summary_df.empty
+    ):
+        if existing_summary is not None and not existing_summary.empty:
+            combined = pd.concat([existing_summary, summary_df], ignore_index=True)
+        else:
+            combined = summary_df
+        combined = combined.drop_duplicates(subset=["filepath"], keep="last")
+        summary_df = combined
+        _write_summary_csv(summary_path, summary_df)
 
     if verbose:
         elapsed = time.time() - t0
