@@ -4,6 +4,14 @@
 It applies a validated multi-cohort deep-learning model trained on **36,000 sleep recordings** to estimate cognitive performance, disease likelihoods, and mortality-related physiological patterns.  
 The tool runs in seconds and outputs both a **single Brain Health Score** and a **1024-dimensional latent embedding** suitable for research and biomarker discovery.
 
+## Scientific study
+
+If you use or reference this tool, please cite the peer-reviewed study:
+
+Ganglberger, W., Sun, H., Turley, N., et al. and Westover, M.B. (2026) ‘Brain Health from Sleep EEG: A Multicohort, Deep Learning Biomarker for Cognition, Disease, and Mortality’, NEJM AI, 3(3), DOI: 10.1056/AIoa2500487.
+
+Available [here](https://ai.nejm.org/stoken/default+domain/6TDQIRG3F3D9QQPQ2PGW/full?redirectUri=doi/full/10.1056/AIoa2500487).
+
 ---
 
 ## Who is this for?
@@ -99,15 +107,6 @@ Sample full-night EEG data is included under `./sample-data/`.
 
 - Use a **GPU** if available  
 - Keep `batch_size=1`
-
-
----
-
-## Citation
-
-If you use this tool in academic work, please cite:
-
-Ganglberger W. et al. (2025). *Brain health from sleep EEG: A multi-cohort, deep learning biomarker for cognition, disease and mortality.*
 
 ---
 
