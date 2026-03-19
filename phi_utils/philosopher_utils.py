@@ -8,7 +8,7 @@ import os, json, shutil
 from dataclasses import dataclass, asdict, field
 from typing import Sequence, Optional
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 import numpy as np
 import pandas as pd
@@ -36,6 +36,10 @@ from phi_utils.model_config import SleepPhilosopherSpectral
 
 
 # ---------------- Config ---------------- #
+DEFAULT_CHECKPOINT_FILENAME = "SleepPhilosophersStone.ckpt"
+DEFAULT_HUGGINGFACE_REPO_ID = "wolfgang-ganglberger/philosophers-stone"
+
+
 @dataclass
 class Config:
     channel: str = "c4-m1"
@@ -49,7 +53,7 @@ class Config:
     wavelet_beta: int = 30
     nv: int = 32
     model_file: str = field(default_factory=lambda: str(
-        Path(__file__).resolve().parent.parent / "model_files" / "SleepPhilosophersStone.ckpt"
+        Path(__file__).resolve().parent.parent / "model_files" / DEFAULT_CHECKPOINT_FILENAME
     ))
     head_weights_csv: str = "./phi_utils/head_weights.csv"
     plot: bool = False
@@ -70,17 +74,34 @@ class Config:
 DefaultConfig = Config
 
 
-CHECKPOINT_DOWNLOAD_URL = (
-    "https://www.dropbox.com/scl/fi/xijxzkplnyo1ai3qztscb/"
-    "SleepPhilosophersStone.ckpt?rlkey=al1l5ch171fy6n8jwvuhzubvv&st=sbfv32la&dl=1"
-)
+def _build_huggingface_download_url(repo_id: str, filename: str, revision: str = "main") -> str:
+    repo_path = "/".join(part.strip("/") for part in repo_id.split("/", 1))
+    file_path = "/".join(part.strip("/") for part in filename.split("/"))
+    return f"https://huggingface.co/{repo_path}/resolve/{revision}/{file_path}?download=1"
+
+
+def _default_checkpoint_download_url() -> Optional[str]:
+    env_url = os.getenv("PHILOSOPHER_MODEL_URL")
+    if env_url:
+        return env_url
+
+    repo_id = os.getenv("PHILOSOPHER_MODEL_REPO_ID", DEFAULT_HUGGINGFACE_REPO_ID)
+    filename = os.getenv("PHILOSOPHER_MODEL_FILENAME", DEFAULT_CHECKPOINT_FILENAME)
+    revision = os.getenv("PHILOSOPHER_MODEL_REVISION", "main")
+    return _build_huggingface_download_url(repo_id, filename, revision)
+
+
+CHECKPOINT_DOWNLOAD_URL = _default_checkpoint_download_url()
 
 
 def _download_checkpoint(url: str, destination: Path) -> Path:
     """Download checkpoint to destination atomically."""
     destination.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = destination.with_suffix(destination.suffix + ".download")
-    with urlopen(url) as resp, open(tmp_path, "wb") as f:
+    token = os.getenv("PHILOSOPHER_MODEL_TOKEN")
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    request = Request(url, headers=headers)
+    with urlopen(request) as resp, open(tmp_path, "wb") as f:
         shutil.copyfileobj(resp, f)
     tmp_path.replace(destination)
     return destination
@@ -98,13 +119,21 @@ def _get_checkpoint_path(path_str: str) -> Path:
         checkpoint_path = (
             Path(__file__).resolve().parent.parent
             / "model_files"
-            / "SleepPhilosophersStone.ckpt"
+            / DEFAULT_CHECKPOINT_FILENAME
         )
     else:
         checkpoint_path = Path(path_str).expanduser().resolve()
 
     if checkpoint_path.exists():
         return checkpoint_path
+
+    if not download_url:
+        raise FileNotFoundError(
+            f"Checkpoint not found at {checkpoint_path}. "
+            "Configure either PHILOSOPHER_MODEL_FILE with a local path or HTTPS URL, "
+            "or set PHILOSOPHER_MODEL_REPO_ID (plus optional PHILOSOPHER_MODEL_FILENAME "
+            "and PHILOSOPHER_MODEL_REVISION) to auto-download from Hugging Face."
+        )
 
     print(f"[Model] Checkpoint not found at {checkpoint_path} (expected at first run after installation). Downloading from {download_url} ...")
     return _download_checkpoint(download_url, checkpoint_path)

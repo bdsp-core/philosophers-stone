@@ -14,36 +14,80 @@ from __future__ import annotations
 import argparse
 import base64
 import json
-from filelock import FileLock
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Iterable, Optional, Tuple, Union
 import gc
-import psutil
-import numpy as np
-import pandas as pd
-import torch
-from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm
-import matplotlib.pyplot as plt
-import matplotlib
+
+try:
+    from filelock import FileLock
+    import psutil
+    import numpy as np
+    import pandas as pd
+    import torch
+    from torch.utils.data import DataLoader, Dataset
+    from tqdm import tqdm
+    import matplotlib.pyplot as plt
+    import matplotlib
+except ModuleNotFoundError as exc:
+    missing = exc.name or "required package"
+    print(
+        f"Missing Python dependency: {missing}\n"
+        "Set up the recommended environment first:\n"
+        "  ./run_sample.sh\n"
+        "or create the conda environment from environment.yml and re-run.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1) from exc
+
 matplotlib.use("Agg")     # headless; avoids GUI backends keeping refs
 plt.ioff()
 
-from phi_utils.philosopher_utils import (
-    Config as PhilosopherConfig,
-    _apply_head_weights,
-    _compute_wavelet_specs,
-    _load_eeg,
-    load_model,
-    plot_spectrogram,
-    plot_spectrogram_with_stages,
-    preprocess_filter,
-)
+try:
+    from phi_utils.philosopher_utils import (
+        Config as PhilosopherConfig,
+        _apply_head_weights,
+        _compute_wavelet_specs,
+        _load_eeg,
+        load_model,
+        plot_spectrogram,
+        plot_spectrogram_with_stages,
+        preprocess_filter,
+    )
+except ModuleNotFoundError as exc:
+    missing = exc.name or "required package"
+    print(
+        f"Missing Python dependency: {missing}\n"
+        "Set up the recommended environment first:\n"
+        "  ./run_sample.sh\n"
+        "or create the conda environment from environment.yml and re-run.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1) from exc
 
 ManifestLike = Union[str, Path, pd.DataFrame]
 REQUIRED_COLUMNS = ["filepath", "age", "sex"]
+RECOMMENDED_CONDA_ENV = "philosopher"
+
+
+def _warn_if_nonrecommended_env() -> None:
+    active_conda_env = os.getenv("CONDA_DEFAULT_ENV")
+    if active_conda_env == RECOMMENDED_CONDA_ENV:
+        return
+
+    if active_conda_env:
+        print(
+            f"[Env] Recommended conda environment is '{RECOMMENDED_CONDA_ENV}', "
+            f"but current environment is '{active_conda_env}'. Continuing anyway."
+        )
+        return
+
+    print(
+        f"[Env] Recommended conda environment is '{RECOMMENDED_CONDA_ENV}'. "
+        "If you hit dependency issues, run ./run_sample.sh or create it from environment.yml."
+    )
 
 
 # ---------- Dataset ---------- #
@@ -440,6 +484,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
 
 def main(argv: Optional[Iterable[str]] = None) -> None:
     args = parse_args(argv)
+    _warn_if_nonrecommended_env()
 
     manifest_path = args.manifest_csv
     if not os.path.exists(manifest_path) and not os.path.exists(f"{manifest_path}.csv"):
