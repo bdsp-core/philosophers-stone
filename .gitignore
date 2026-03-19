@@ -1,3 +1,5 @@
 __pycache__/
 model_files/*
 phi_out/*
+phi_out_sample/
+phi_out_oracle_test/
