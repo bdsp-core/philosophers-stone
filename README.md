@@ -1,14 +1,16 @@
 # Philosophers-Stone — Brain-Health Inference from Single-Channel Sleep EEG
 
-**Philosophers-Stone** is a lightweight inference tool that converts a single-channel overnight sleep EEG into a quantitative index of brain health.  
-It applies a validated multi-cohort deep-learning model trained on **36,000 sleep recordings** to estimate cognitive performance, disease likelihoods, and mortality-related physiological patterns.  
-The tool runs in seconds and outputs both a **single Brain Health Score** and a **1024-dimensional latent embedding** suitable for research and biomarker discovery.
+**Philosophers-Stone** is a inference tool that converts a single-channel overnight sleep EEG into a quantitative index of brain health.
+
+It applies a validated, peer-reviewed multi-cohort deep-learning model trained on **36,000 sleep recordings** to estimate cognitive performance, disease likelihoods, and mortality-related physiological patterns.
+
+The tool outputs both a **single Brain Health Score** and a **1024-dimensional latent embedding** suitable for research and biomarker discovery.
 
 ## Scientific study
 
 If you use or reference this tool, please cite the peer-reviewed study:
 
-Ganglberger, W., Sun, H., Turley, N., et al. and Westover, M.B. (2026) ‘Brain Health from Sleep EEG: A Multicohort, Deep Learning Biomarker for Cognition, Disease, and Mortality’, NEJM AI, 3(3), DOI: 10.1056/AIoa2500487.
+Ganglberger, W., Sun, H., Turley, N., ... & Westover, M. B. (2026). Brain Health from Sleep EEG: A Multicohort, Deep Learning Biomarker for Cognition, Disease, and Mortality. NEJM AI, 3(3), AIoa2500487.
 
 Available [here](https://ai.nejm.org/stoken/default+domain/6TDQIRG3F3D9QQPQ2PGW/full?redirectUri=doi/full/10.1056/AIoa2500487).
 
@@ -16,12 +18,12 @@ Available [here](https://ai.nejm.org/stoken/default+domain/6TDQIRG3F3D9QQPQ2PGW/
 
 ## Who is this for?
 
-- Sleep scientists  
-- Neurologists and dementia researchers  
-- Aging and cognitive-decline investigators  
-- Psychiatry researchers  
-- Data scientists working with physiological signals  
-- Clinical-trial teams exploring EEG-based biomarkers  
+- Sleep scientists
+- Neurologists and dementia researchers
+- Aging and cognitive-decline investigators
+- Psychiatry researchers
+- Data scientists working with physiological signals
+- Clinical-trial teams exploring EEG-based biomarkers
 
 ---
 
@@ -29,34 +31,28 @@ Available [here](https://ai.nejm.org/stoken/default+domain/6TDQIRG3F3D9QQPQ2PGW/
 
 - **Brain Health Score** (single interpretable metric)
 - **1×1024 latent brain-health embedding**  (AI-derived sleep features)
-- **Predictions** for cognition, disease risk, and mortality-related physiology  
-- **Optional outputs**: spectrograms and per-recording JSON summaries  
-
----
-
-## Model provenance
-
-This tool implements the multi-task deep-learning framework described in:
-
-Ganglberger W. et al., *Brain health from sleep EEG: A multi-cohort, deep learning biomarker for cognition, disease and mortality*, 2025.
+- **Predictions** for cognition, disease risk, and mortality-related physiology
+- **Optional outputs**: spectrograms and per-recording JSON summaries
 
 ---
 
 ## Requirements
 
-- Python ≥ 3.10  
-- PyTorch 2.x (CUDA recommended)  
-- pandas, numpy, mne (for EDF), h5py, matplotlib, tqdm, psutil  
+- Python 3.10+
+- Conda recommended
 
-Install dependencies:
+Recommended setup:
 
-    pip install torch pandas numpy mne h5py matplotlib tqdm psutil
+    ./run_sample.sh
+
+This creates the recommended environment if needed, downloads the model checkpoint from Hugging Face, and runs the included sample files.
 
 ### Model file
 
-Auto-download when first running the code.
+Philosophers-Stone looks for the checkpoint at `./model_files/SleepPhilosophersStone.ckpt`.
+If it is missing (i.e., after first repository clone), it auto-downloads it from:
 
----
+- `https://huggingface.co/wolfgang-ganglberger/philosophers-stone`
 
 ## Inputs
 
@@ -64,13 +60,13 @@ Auto-download when first running the code.
 
 A CSV with columns:
 
-- `filepath`
+- `filepath` (absolute path to EEG file)
 - `age` (years)
 - `sex` (0=female, 1=male)
 
 ### EEG File Requirements
 
-Philosophers-Stone accepts **single-channel overnight EEG** in **HDF5 (.h5)** or **EDF (.edf)** format.  
+Philosophers-Stone accepts **single-channel overnight EEG** in **HDF5 (.h5)** or **EDF (.edf)** format.
 Preferred channel: **C4-M1**.
 
 | Format        | Requirements |
@@ -87,30 +83,62 @@ Sample full-night EEG data is included under `./sample-data/`.
     python philosopher.py \
       --manifest_csv phi_manifest.csv
 
+Or use the one-command conda bootstrap:
+
+    ./run_sample.sh
+
+Docker also works; see Docker below.
+
+## Docker
+
+Optionally, you can run Philosophers-Stone inside Docker.
+
+Build the image:
+
+    docker build -t philosophers-stone .
+
+Run the bundled sample files:
+
+    docker run --rm philosophers-stone
+
+Or run the published image directly:
+
+    docker run --rm wolfganglberger/philosophers-stone:latest
+
+Run your own files by mounting a host folder that contains your manifest and EEG data:
+
+    docker run --rm \
+      -v /path/to/data:/data \
+      philosophers-stone \
+      --manifest_csv /data/my_manifest.csv \
+      --outdir /data/output
+
+Important: file paths inside the manifest must use container paths such as `/data/file.edf`, not host-only paths such as `/home/user/file.edf`.
+
 ---
 
 ## Outputs
 
-- **Summary CSV** (`phi_out/phi_results.csv`)  
-  Columns include:  
+- **Summary CSV** (`phi_out/phi_results.csv`)
+  Columns include:
   `file_id, filepath, age, sex, brain_health_score, total_cognition_score, fluid_cognition_score, crystallized_cognition_score, lhl_1…lhl_1024`
 
-- **Latent embedding (`lhl_1…lhl_1024`)**  
+- **Latent embedding (`lhl_1…lhl_1024`)**
   A 1024-dimensional vector summarizing brain-health-relevant EEG patterns.
 
-- **Optional JSON files** under `phi_out/json/`  
+- **Optional JSON files** under `phi_out/json/`
 - **Optional spectrograms** under `phi_out/figures/`
 
 ---
 
 ## Performance tips
 
-- Use a **GPU** if available  
+- Use a **GPU** if available
 - Keep `batch_size=1`
 
 ---
 
 ## License
 
-**CC BY-NC 4.0** — Attribution-NonCommercial 4.0 International.  
+**CC BY-NC 4.0** — Attribution-NonCommercial 4.0 International.
 See the `LICENSE` file for details.
