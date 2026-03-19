@@ -10,7 +10,9 @@ The tool outputs both a **single Brain Health Score** and a **1024-dimensional l
 
 If you use or reference this tool, please cite the peer-reviewed study:
 
-    Ganglberger, W., Sun, H., Turley, N., ... & Westover, M. B. (2026). Brain Health from Sleep EEG: A Multicohort, Deep Learning Biomarker for Cognition, Disease, and Mortality. NEJM AI, 3(3), AIoa2500487.
+    Ganglberger, W., Sun, H., Turley, N., ... & Westover, M. B. (2026). 
+    Brain Health from Sleep EEG: A Multicohort, Deep Learning Biomarker for Cognition, Disease, and Mortality. 
+    NEJM AI, 3(3), AIoa2500487.
 
 Available [here](https://ai.nejm.org/stoken/default+domain/6TDQIRG3F3D9QQPQ2PGW/full?redirectUri=doi/full/10.1056/AIoa2500487).
 
