@@ -10,7 +10,7 @@ The tool outputs both a **single Brain Health Score** and a **1024-dimensional l
 
 If you use or reference this tool, please cite the peer-reviewed study:
 
-Ganglberger, W., Sun, H., Turley, N., ... & Westover, M. B. (2026). Brain Health from Sleep EEG: A Multicohort, Deep Learning Biomarker for Cognition, Disease, and Mortality. NEJM AI, 3(3), AIoa2500487.
+    Ganglberger, W., Sun, H., Turley, N., ... & Westover, M. B. (2026). Brain Health from Sleep EEG: A Multicohort, Deep Learning Biomarker for Cognition, Disease, and Mortality. NEJM AI, 3(3), AIoa2500487.
 
 Available [here](https://ai.nejm.org/stoken/default+domain/6TDQIRG3F3D9QQPQ2PGW/full?redirectUri=doi/full/10.1056/AIoa2500487).
 
@@ -87,33 +87,7 @@ Or use the one-command conda bootstrap:
 
     ./run_sample.sh
 
-Docker also works; see Docker below.
-
-## Docker
-
-Optionally, you can run Philosophers-Stone inside Docker.
-
-Build the image:
-
-    docker build -t philosophers-stone .
-
-Run the bundled sample files:
-
-    docker run --rm philosophers-stone
-
-Or run the published image directly:
-
-    docker run --rm wolfganglberger/philosophers-stone:latest
-
-Run your own files by mounting a host folder that contains your manifest and EEG data:
-
-    docker run --rm \
-      -v /path/to/data:/data \
-      philosophers-stone \
-      --manifest_csv /data/my_manifest.csv \
-      --outdir /data/output
-
-Important: file paths inside the manifest must use container paths such as `/data/file.edf`, not host-only paths such as `/home/user/file.edf`.
+Optionally, you can use Docker; see [`docker/README.md`](/home/wolfgang/repos/philosophers-stone/docker/README.md).
 
 ---
 
