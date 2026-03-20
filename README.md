@@ -89,7 +89,7 @@ Or use the one-command conda bootstrap:
 
     ./run_sample.sh
 
-Optionally, you can use Docker; see [`docker/README.md`](/home/wolfgang/repos/philosophers-stone/docker/README.md).
+Optionally, you can use Docker; see [the Docker ReadMe](docker/README.md).
 
 ---
 
