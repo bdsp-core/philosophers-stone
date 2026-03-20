@@ -1,10 +1,19 @@
-# Philosophers-Stone — Brain-Health Inference from Single-Channel Sleep EEG
+<p align="center">
+  <img src="docs/images/logo.png" alt="Logo" width="350">
+</p>
+
+# Brain-Health Inference from Sleep EEG
+
 
 **Philosophers-Stone** is a inference tool that converts a single-channel overnight sleep EEG into a quantitative index of brain health.
 
 It applies a validated, peer-reviewed multi-cohort deep-learning model trained on **36,000 sleep recordings** to estimate cognitive performance, disease likelihoods, and mortality-related physiological patterns.
 
 The tool outputs both a **single Brain Health Score** and a **1024-dimensional latent embedding** suitable for research and biomarker discovery.
+
+<p align="center">
+  <img src="docs/images/overview.jpg" alt="Overview" width="500">
+</p>
 
 ## Scientific study
 
