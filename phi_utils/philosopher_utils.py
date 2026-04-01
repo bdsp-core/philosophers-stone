@@ -28,10 +28,6 @@ from phi_utils.preprocessing_and_spectrograms import (
     pad_spectrogram,
 )
 
-from phi_utils.philosopher_init import (
-    default_model_init_vars
-)
-
 from phi_utils.model_config import SleepPhilosopherSpectral
 
 
@@ -149,16 +145,8 @@ def load_model(cfg: Config = DefaultConfig()) -> "torch.nn.Module":
     # ensure the model is present locally (download if missing)
     model_path = _get_checkpoint_path(cfg.model_file)
 
-    model_args = default_model_init_vars()
-    dim_final_latent_space = model_args.pop("dim_final_latent_space")
-    fs_time = model_args.pop("fs_time")
-
-    model = (
-        SleepPhilosopherSpectral(
-            **model_args,
-            dim_final_latent_space=dim_final_latent_space,
-            fs_time=fs_time,
-        ).load_from_checkpoint(str(model_path))
+    model = SleepPhilosopherSpectral.load_from_checkpoint(
+        str(model_path),
     )
     model.to(cfg.device)
     # Note: We use the model in .train() mode here but deactivate dropout and gradient computation.
@@ -174,6 +162,17 @@ def load_model(cfg: Config = DefaultConfig()) -> "torch.nn.Module":
             module.drop_prob = 0.0
         if isinstance(module, torch.nn.modules.batchnorm._BatchNorm):
             module.track_running_stats = False      # no state updates, use batch stats
+
+    n_heads = len(model.heads)
+    n_target_names = len(model.target_names)
+    n_target_output_dims = len(model.target_output_dims)
+    n_task_types = len(model.task_types)
+    if not (n_heads == n_target_names == n_target_output_dims == n_task_types):
+        raise RuntimeError(
+            "Loaded Philosopher checkpoint/config mismatch: "
+            f"heads={n_heads}, target_names={n_target_names}, "
+            f"target_output_dims={n_target_output_dims}, task_types={n_task_types}"
+        )
                 
     return model
 
