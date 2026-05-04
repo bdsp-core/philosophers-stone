@@ -48,9 +48,9 @@ plt.ioff()
 try:
     from phi_utils.philosopher_utils import (
         Config as PhilosopherConfig,
-        _apply_head_weights,
         _compute_wavelet_specs,
         _load_eeg,
+        infer_brain_health_from_specs,
         load_model,
         plot_spectrogram,
         plot_spectrogram_with_stages,
@@ -197,6 +197,29 @@ def _write_summary_csv(summary_path: Path, df: pd.DataFrame) -> None:
         df.to_csv(summary_path, index=False)
 
 
+def _merge_summary_csv(summary_path: Path, df_new: pd.DataFrame) -> pd.DataFrame:
+    lock_path = summary_path.with_suffix(summary_path.suffix + ".lock")
+    lock = FileLock(str(lock_path))
+    with lock:
+        if summary_path.exists():
+            try:
+                existing = pd.read_csv(summary_path)
+            except Exception:
+                existing = pd.DataFrame()
+        else:
+            existing = pd.DataFrame()
+
+        if existing.empty:
+            combined = df_new.copy()
+        else:
+            combined = pd.concat([existing, df_new], ignore_index=True)
+
+        if "filepath" in combined.columns:
+            combined = combined.drop_duplicates(subset=["filepath"], keep="last")
+        combined.to_csv(summary_path, index=False)
+        return combined
+
+
 # ---------- Public API ---------- #
 def run_philosopher(
     manifest: ManifestLike,
@@ -307,17 +330,9 @@ def run_philosopher(
 
     iterator: Iterable = tqdm(dataloader, desc=f"\033[38;5;220m{tqdm_desc}") if show_progress else dataloader
     results = []
-    existing_summary: Optional[pd.DataFrame] = None
     summary_path: Optional[Path] = None
     if save_summary and summary_dir is not None:
         summary_path = summary_dir / "phi_results.csv"
-        if summary_path.exists():
-            try:
-                existing_summary = pd.read_csv(summary_path)
-            except Exception:
-                existing_summary = pd.DataFrame()
-        else:
-            existing_summary = pd.DataFrame()
 
     for batch in iterator:
         specs, age_z, sex, file_id, age_raw, filepath = batch
@@ -330,59 +345,62 @@ def run_philosopher(
         filepath_val = filepath[0]
         age_val = float(age_raw[0]) if hasattr(age_raw, "__len__") else float(age_raw)
 
-        latent, y_reg, y_clf, stage = infer_one(model, specs, age_z_val, sex_val, cfg)
-        pred_df, bhs = _apply_head_weights(latent, cfg, age_z_val, sex_val)
+        result = infer_brain_health_from_specs(
+            specs,
+            age=age_val,
+            sex=sex_val,
+            file_id=file_id_val,
+            filepath=filepath_val,
+            cfg=cfg,
+            model=model,
+            collect_head_outputs=collect_head_outputs,
+        )
+        if result.get("status") != "ok":
+            raise RuntimeError(str(result.get("error_message", "Brain-health inference failed.")))
+        bhs = float(result["brain_health_score"])
+        latent = np.asarray(result["latent"], dtype=np.float32)
+        stage = np.asarray(result["stage_probabilities"], dtype=np.float32)
 
         if save_json and json_dir is not None:
+            stage_json = stage[np.newaxis, ...] if stage.ndim == 2 else stage
             out_json = {
                 "file_id": file_id_val,
                 "filename": filename,
                 "filepath": filepath_val,
                 "brain_health_score": round(float(bhs), 5),
-                "pred_df": pred_df.to_dict(),
-                "latent": latent.tolist(),
-                "stage": stage.tolist(),
+                "predictions": result.get("predictions", {}),
+                "latent": latent.reshape(1, -1).tolist(),
+                "stage": stage_json.tolist(),
             }
             json_path = json_dir / f"{file_id_val}_result.json"
             with open(json_path, "w") as f:
                 json.dump(out_json, f, indent=2)
 
-        f_precision = 5
-        row = {
-            "file_id": file_id_val,
-            "filepath": filepath_val,
-            "age": age_val,
-            "sex": sex_val,
-            "brain_health_score": float(round(bhs, f_precision)),
-            "total_cognition_score": float(round(pred_df.loc["cog_total", "y_pred"], f_precision)),
-            "fluid_cognition_score": float(round(pred_df.loc["cog_fluid", "y_pred"], f_precision)),
-            "crystallized_cognition_score": float(round(pred_df.loc["cog_crystallized", "y_pred"], f_precision)),
+        summary_keys = {
+            "file_id",
+            "filepath",
+            "age",
+            "sex",
+            "brain_health_score",
+            "total_cognition_score",
+            "fluid_cognition_score",
+            "crystallized_cognition_score",
         }
-
-        if collect_head_outputs:
-            # include head predictions except for the summary cognition heads already captured above
-            for head_name, value in pred_df["y_pred"].items():
-                if head_name in {"cog_total", "cog_fluid", "cog_crystallized"}:
-                    continue
-                if head_name not in row:
-                    row[f"head_{head_name}"] = float(round(value, f_precision))
-
-        latent_flat = latent.flatten()
-        for idx, value in enumerate(latent_flat, start=1):
-            row[f"lhl_{idx}"] = float(value)
+        row = {
+            key: value
+            for key, value in result.items()
+            if key in summary_keys or key.startswith("lhl_") or key.startswith("head_")
+        }
 
         results.append(row)
         if save_summary and summary_dir is not None and summary_path is not None:
             summary_df = pd.DataFrame(results)
-            if existing_summary is not None and not existing_summary.empty:
-                combined = pd.concat([existing_summary, summary_df], ignore_index=True)
-            else:
-                combined = summary_df
-            combined = combined.drop_duplicates(subset=["filepath"], keep="last")
-            _write_summary_csv(summary_path, combined)
+            _merge_summary_csv(summary_path, summary_df)
 
         if save_plots and figure_dir is not None:
-            hypnogram = stage.squeeze(0)
+            hypnogram = np.asarray(stage)
+            if hypnogram.ndim == 3:
+                hypnogram = hypnogram.squeeze(0)
             hypnogram = np.argmax(hypnogram, axis=0) + 1
             hypnogram[hypnogram == 6] = 5
 
@@ -437,13 +455,7 @@ def run_philosopher(
         and summary_path is not None
         and not summary_df.empty
     ):
-        if existing_summary is not None and not existing_summary.empty:
-            combined = pd.concat([existing_summary, summary_df], ignore_index=True)
-        else:
-            combined = summary_df
-        combined = combined.drop_duplicates(subset=["filepath"], keep="last")
-        summary_df = combined
-        _write_summary_csv(summary_path, summary_df)
+        summary_df = _merge_summary_csv(summary_path, summary_df)
 
     if verbose:
         elapsed = time.time() - t0

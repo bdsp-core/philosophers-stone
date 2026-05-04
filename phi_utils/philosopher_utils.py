@@ -9,10 +9,13 @@ from dataclasses import dataclass, asdict, field
 from typing import Sequence, Optional
 from pathlib import Path
 from urllib.request import Request, urlopen
+from fractions import Fraction
+from importlib import resources
 
 import numpy as np
 import pandas as pd
 import torch
+from scipy import signal as sp_signal
 
 torch.manual_seed(9)
 
@@ -36,6 +39,32 @@ DEFAULT_CHECKPOINT_FILENAME = "SleepPhilosophersStone.ckpt"
 DEFAULT_HUGGINGFACE_REPO_ID = "wolfgang-ganglberger/philosophers-stone"
 
 
+def _package_resource_path(filename: str) -> str:
+    return str(resources.files("phi_utils").joinpath(filename))
+
+
+def _default_model_file() -> str:
+    env_override = os.getenv("PHILOSOPHER_MODEL_FILE")
+    if env_override:
+        return env_override
+
+    repo_candidate = (
+        Path(__file__).resolve().parent.parent
+        / "model_files"
+        / DEFAULT_CHECKPOINT_FILENAME
+    )
+    if repo_candidate.exists():
+        return str(repo_candidate)
+
+    cache_dir = Path(
+        os.getenv(
+            "PHILOSOPHER_CACHE_DIR",
+            str(Path.home() / ".cache" / "philosophers-stone"),
+        )
+    )
+    return str(cache_dir / "model_files" / DEFAULT_CHECKPOINT_FILENAME)
+
+
 @dataclass
 class Config:
     channel: str = "c4-m1"
@@ -48,10 +77,8 @@ class Config:
     wavelet_gamma: int = 60
     wavelet_beta: int = 30
     nv: int = 32
-    model_file: str = field(default_factory=lambda: str(
-        Path(__file__).resolve().parent.parent / "model_files" / DEFAULT_CHECKPOINT_FILENAME
-    ))
-    head_weights_csv: str = "./phi_utils/head_weights.csv"
+    model_file: str = field(default_factory=_default_model_file)
+    head_weights_csv: str = field(default_factory=lambda: _package_resource_path("head_weights.csv"))
     plot: bool = False
     gpu_id: int = 0
     device: str = field(init=False)
@@ -60,7 +87,7 @@ class Config:
 
     def __post_init__(self):
         self.device = f"cuda:{self.gpu_id}" if torch.cuda.is_available() else "cpu"
-        # Allow environment override for the model file location
+        # Allow environment override for the model file location.
         env_override = os.getenv("PHILOSOPHER_MODEL_FILE")
         if env_override:
             self.model_file = env_override
@@ -103,7 +130,7 @@ def _download_checkpoint(url: str, destination: Path) -> Path:
     return destination
 
 
-def _get_checkpoint_path(path_str: str) -> Path:
+def _get_checkpoint_path(path_str: str, *, download_if_missing: bool = True) -> Path:
     """
     Return a local checkpoint path, downloading from the configured URL if missing.
     If path_str is a URL, download to the canonical model_files location.
@@ -123,6 +150,9 @@ def _get_checkpoint_path(path_str: str) -> Path:
     if checkpoint_path.exists():
         return checkpoint_path
 
+    if not download_if_missing:
+        raise FileNotFoundError(f"Checkpoint not found at {checkpoint_path}.")
+
     if not download_url:
         raise FileNotFoundError(
             f"Checkpoint not found at {checkpoint_path}. "
@@ -135,6 +165,16 @@ def _get_checkpoint_path(path_str: str) -> Path:
     return _download_checkpoint(download_url, checkpoint_path)
 
 
+def checkpoint_available(cfg: Optional[Config] = None) -> tuple[bool, str]:
+    """Return whether the configured checkpoint exists locally without downloading it."""
+
+    cfg = cfg or Config()
+    try:
+        return True, str(_get_checkpoint_path(cfg.model_file, download_if_missing=False))
+    except FileNotFoundError as exc:
+        return False, str(exc)
+
+
 
 def load_model(cfg: Config = DefaultConfig()) -> "torch.nn.Module":
     """
@@ -143,10 +183,14 @@ def load_model(cfg: Config = DefaultConfig()) -> "torch.nn.Module":
     """
 
     # ensure the model is present locally (download if missing)
-    model_path = _get_checkpoint_path(cfg.model_file)
+    model_path = _get_checkpoint_path(cfg.model_file, download_if_missing=True)
 
+    # Let the checkpoint restore its own hyperparameters. Passing the current
+    # source defaults here can override the checkpoint metadata with placeholder
+    # list lengths from `default_model_init_vars()`.
     model = SleepPhilosopherSpectral.load_from_checkpoint(
         str(model_path),
+        strict=False,
     )
     model.to(cfg.device)
     # Note: We use the model in .train() mode here but deactivate dropout and gradient computation.
@@ -177,6 +221,15 @@ def load_model(cfg: Config = DefaultConfig()) -> "torch.nn.Module":
     return model
 
 
+def _normalise_channel_name(name: str) -> str:
+    return (
+        name.lower()
+        .replace(" ", "")
+        .replace("‑", "-")
+        .replace("/", "-")
+    )
+
+
 def _guess_channel(ch_names: Sequence[str], canonical: str) -> Optional[str]:
     """
     Try common aliases for C4‑M1 (case‑ and whitespace‑insensitive).
@@ -184,12 +237,12 @@ def _guess_channel(ch_names: Sequence[str], canonical: str) -> Optional[str]:
     """
     aliases = {
         "c4-m1", "c4 m1", "c4‑m1", "c4m1",
-        "c4-m",  "c4‑m",  "c4mast", "c4a1",  # sometimes linked to mastoid
+        "c4-m",  "c4‑m",  "c4mast", "c4a1", "c4-a1",  # A1/M1 often used interchangeably
         "c4-m2", "c4-a2", "c4",
         }
-    aliases = {a.lower().replace(" ", "").replace("‑", "-") for a in aliases}
+    aliases = {_normalise_channel_name(a) for a in aliases}
     for ch in ch_names:
-        norm = ch.lower().replace(" ", "").replace("‑", "-")
+        norm = _normalise_channel_name(ch)
         if norm in aliases:
             return ch
     return None
@@ -207,7 +260,11 @@ def _resample_raw(raw, target_hz: float):
     existing_lowpass = raw.info.get("lowpass") or current / 2.0
     lowpass = min(existing_lowpass, 0.99 * target_hz / 2.0)
 
-    raw.resample(target_hz, npad="auto", window="boxcar", npad_max="auto", low_pass=lowpass, verbose=False)
+    # MNE's resample API differs across versions. Apply the anti-alias low-pass
+    # explicitly, then call the portable subset of resample arguments.
+    if current > target_hz and lowpass > 0:
+        raw.filter(l_freq=None, h_freq=lowpass, verbose=False)
+    raw.resample(target_hz, npad="auto", window="boxcar", verbose=False)
     return raw
 
 # ---------------- Return type ------------- #
@@ -313,6 +370,210 @@ def _compute_wavelet_specs(signals, fs_eeg, cfg: Config):
         f"Spectrogram shape {specs.shape} ≠ {(exp_len, cfg.n_freqs)}"
 
     return specs  # (T, F)
+
+
+@torch.no_grad()
+def infer_one(model, specs, age_z: float, sex: int, cfg: Config):
+    """Run the neural network for one already-computed spectrogram."""
+
+    device = torch.device(cfg.device)
+    x = torch.tensor(specs, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
+    cov = torch.tensor([[age_z, sex]], dtype=torch.float32).to(device)
+
+    yp_reg, yp_clf, yp_stage, latent = model(x, cov, return_features_lhl=True)
+
+    del x, cov
+    return (
+        latent.cpu().numpy(),
+        yp_reg.cpu().numpy(),
+        yp_clf.cpu().numpy(),
+        yp_stage.cpu().numpy(),
+    )
+
+
+def _checkpoint_metadata(cfg: Config) -> dict[str, object]:
+    try:
+        path = _get_checkpoint_path(cfg.model_file, download_if_missing=False)
+    except Exception:
+        return {
+            "model_file": str(cfg.model_file),
+            "model_file_available": False,
+        }
+    try:
+        stat = path.stat()
+        return {
+            "model_file": str(path),
+            "model_file_name": path.name,
+            "model_file_size": int(stat.st_size),
+            "model_file_mtime": float(stat.st_mtime),
+            "model_file_available": True,
+        }
+    except Exception:
+        return {
+            "model_file": str(path),
+            "model_file_available": True,
+        }
+
+
+def _result_row_from_predictions(
+    *,
+    file_id: str,
+    age: float,
+    sex: int,
+    filepath: str,
+    pred_df: pd.DataFrame,
+    bhs: float,
+    latent: np.ndarray,
+    collect_head_outputs: bool = False,
+    precision: int = 5,
+) -> dict[str, object]:
+    row: dict[str, object] = {
+        "file_id": file_id,
+        "filepath": filepath,
+        "age": float(age),
+        "sex": int(sex),
+        "brain_health_score": float(round(float(bhs), precision)),
+        "total_cognition_score": float(round(pred_df.loc["cog_total", "y_pred"], precision)),
+        "fluid_cognition_score": float(round(pred_df.loc["cog_fluid", "y_pred"], precision)),
+        "crystallized_cognition_score": float(round(pred_df.loc["cog_crystallized", "y_pred"], precision)),
+    }
+
+    if collect_head_outputs:
+        for head_name, value in pred_df["y_pred"].items():
+            if head_name in {"cog_total", "cog_fluid", "cog_crystallized"}:
+                continue
+            if head_name not in row:
+                row[f"head_{head_name}"] = float(round(float(value), precision))
+
+    for idx, value in enumerate(np.asarray(latent).flatten(), start=1):
+        row[f"lhl_{idx}"] = float(value)
+    return row
+
+
+def infer_brain_health_from_specs(
+    specs: np.ndarray,
+    *,
+    age: float,
+    sex: int,
+    file_id: str,
+    filepath: str = "",
+    cfg: Optional[Config] = None,
+    model: Optional[torch.nn.Module] = None,
+    collect_head_outputs: bool = False,
+) -> dict[str, object]:
+    """Run Philosopher's Stone from a precomputed spectrogram.
+
+    This is the shared core used by the CLI and by tests. It performs no disk
+    writes and returns plain Python/numpy values.
+    """
+
+    cfg = cfg or Config()
+    model = model or load_model(cfg)
+    age_z = (float(age) - cfg.age_mean_tr_data) / cfg.age_std_tr_data
+    sex_int = int(sex)
+
+    latent, y_reg, y_clf, stage = infer_one(model, specs, age_z, sex_int, cfg)
+    pred_df, bhs = _apply_head_weights(latent, cfg, age_z, sex_int)
+    row = _result_row_from_predictions(
+        file_id=file_id,
+        age=float(age),
+        sex=sex_int,
+        filepath=filepath,
+        pred_df=pred_df,
+        bhs=bhs,
+        latent=latent,
+        collect_head_outputs=collect_head_outputs,
+    )
+
+    return {
+        "schema_version": "philosophers_stone_brain_health_v1",
+        "status": "ok",
+        **row,
+        "predictions": {str(k): float(v) for k, v in pred_df["y_pred"].items()},
+        "latent": np.asarray(latent).reshape(-1).astype(np.float32),
+        "stage_probabilities": np.asarray(stage).squeeze().astype(np.float32),
+        "regression_outputs": np.asarray(y_reg).astype(np.float32),
+        "classification_outputs": np.asarray(y_clf).astype(np.float32),
+        **_checkpoint_metadata(cfg),
+    }
+
+
+def _resample_1d(signal: np.ndarray, fs_hz: float, target_hz: float) -> np.ndarray:
+    fs = float(fs_hz)
+    target = float(target_hz)
+    if fs <= 0:
+        raise ValueError("Input sampling rate must be positive.")
+    if abs(fs - target) < 1e-6:
+        return np.asarray(signal, dtype=float)
+
+    ratio = Fraction(target / fs).limit_denominator(1000)
+    return sp_signal.resample_poly(np.asarray(signal, dtype=float), ratio.numerator, ratio.denominator)
+
+
+def _error_result(file_id: str, age: object, sex: object, exc: Exception) -> dict[str, object]:
+    return {
+        "schema_version": "philosophers_stone_brain_health_v1",
+        "status": "error",
+        "file_id": str(file_id),
+        "age": age,
+        "sex": sex,
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+    }
+
+
+def infer_brain_health(
+    eeg_uv: np.ndarray,
+    *,
+    fs_hz: float,
+    age: float,
+    sex: int,
+    file_id: str,
+    filepath: str = "",
+    cfg: Optional[Config] = None,
+    model: Optional[torch.nn.Module] = None,
+    collect_head_outputs: bool = False,
+) -> dict[str, object]:
+    """Run brain-health inference from a single EEG channel in microvolts.
+
+    Parameters are intentionally array-based so applications can use their own
+    H5 readers and unit conversion without creating temporary Philosopher-specific
+    files.
+    """
+
+    cfg = cfg or Config()
+    try:
+        eeg = np.asarray(eeg_uv, dtype=float).reshape(-1)
+        if eeg.size == 0:
+            raise ValueError("Input EEG is empty.")
+        if not np.isfinite(eeg).all():
+            raise ValueError("Input EEG contains NaN or infinite values.")
+
+        eeg_200 = _resample_1d(eeg, fs_hz, cfg.resample_hz)
+        max_len = int(cfg.hours_pad * 3600 * cfg.resample_hz)
+        if len(eeg_200) > max_len:
+            eeg_200 = eeg_200[:max_len]
+
+        signals = pd.DataFrame({cfg.channel: eeg_200.astype(float)})
+        signals = preprocess_filter(signals, Fs=cfg.resample_hz, bandpass_high=cfg.f_high)
+        specs = _compute_wavelet_specs(signals, cfg.resample_hz, cfg)
+        result = infer_brain_health_from_specs(
+            specs,
+            age=age,
+            sex=sex,
+            file_id=file_id,
+            filepath=filepath,
+            cfg=cfg,
+            model=model,
+            collect_head_outputs=collect_head_outputs,
+        )
+        result["input_fs_hz"] = float(fs_hz)
+        result["model_fs_hz"] = float(cfg.resample_hz)
+        result["input_n_samples"] = int(len(eeg))
+        result["model_n_samples"] = int(len(eeg_200))
+        return result
+    except Exception as exc:
+        return _error_result(file_id, age, sex, exc)
 
 
 def _make_frequency_grid(n_freqs: int) -> np.ndarray:

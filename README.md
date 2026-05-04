@@ -60,8 +60,10 @@ This creates the recommended environment if needed, downloads the model checkpoi
 
 ### Model file
 
-Philosophers-Stone looks for the checkpoint at `./model_files/SleepPhilosophersStone.ckpt`.
-If it is missing (i.e., after first repository clone), it auto-downloads it from:
+Philosophers-Stone first uses `PHILOSOPHER_MODEL_FILE` when set. In a source
+checkout it then looks for `./model_files/SleepPhilosophersStone.ckpt`;
+package installs fall back to `~/.cache/philosophers-stone/model_files/`.
+If the checkpoint is missing, explicit inference calls can auto-download it from:
 
 - `https://huggingface.co/wolfgang-ganglberger/philosophers-stone`
 
@@ -99,6 +101,29 @@ Or use the one-command conda bootstrap:
     ./run_sample.sh
 
 Optionally, you can use Docker; see [the Docker ReadMe](docker/README.md).
+
+## Optional package install
+
+For applications that want to call Philosopher's Stone directly:
+
+    pip install -e .
+
+The package exposes an array-based API:
+
+    from phi_utils.philosopher_utils import Config, infer_brain_health
+
+    result = infer_brain_health(
+        eeg_uv,
+        fs_hz=200,
+        age=65,
+        sex=1,
+        file_id="study-001",
+        cfg=Config(),
+    )
+
+`eeg_uv` must be one overnight EEG channel in microvolts. The API does not
+write output files; callers decide where to persist returned scores, latent
+features, and optional stage probabilities.
 
 ---
 

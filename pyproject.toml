@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=75.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "philosophers-stone"
+version = "0.1.0"
+description = "Brain-health inference from single-channel overnight sleep EEG"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "CC BY-NC 4.0" }
+dependencies = [
+    "filelock>=3.13",
+    "h5py>=3.7",
+    "matplotlib>=3.9",
+    "mne>=1.2",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "psutil>=5.9",
+    "pytorch-lightning>=2.0",
+    "scikit-learn>=1.4",
+    "scipy>=1.12",
+    "ssqueezepy>=0.6.5",
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "tqdm>=4.66",
+]
+
+[tool.setuptools]
+py-modules = ["philosopher"]
+
+[tool.setuptools.package-dir]
+timm = "pytorch-image-models/timm"
+
+[tool.setuptools.packages.find]
+where = [".", "pytorch-image-models"]
+include = ["phi_utils", "timm", "timm.*"]
+
+[tool.setuptools.package-data]
+phi_utils = ["head_weights.csv"]
+timm = ["py.typed", "**/*.txt", "**/*.json", "**/*.csv"]

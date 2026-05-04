@@ -1,16 +1,15 @@
 import sys
 import os
 
-base_path1 = os.path.join( os.path.dirname(__file__), '..', 'pytorch-image-models')
-base_path2 = os.path.join( os.path.dirname(__file__), '..', 'pytorch-image-models/timm/')
-sys.path.insert(0, os.path.abspath(base_path1))
-sys.path.insert(0, os.path.abspath(base_path2))
+base_path1 = os.path.join(os.path.dirname(__file__), '..', 'pytorch-image-models')
+if os.path.isdir(base_path1):
+    sys.path.insert(0, os.path.abspath(base_path1))
 
-from models.maxxvit import *
-from models.maxxvit import _rw_max_cfg, cfg_window_size, MaxxVitStage, _init_conv
-from models._manipulate import named_apply
-from layers import get_norm_layer, get_norm_act_layer, to_2tuple
-from layers import NormMlpClassifierHead2
+from timm.models.maxxvit import *
+from timm.models.maxxvit import _rw_max_cfg, cfg_window_size, MaxxVitStage, _init_conv
+from timm.models._manipulate import named_apply
+from timm.layers import get_norm_layer, get_norm_act_layer, to_2tuple
+from timm.layers import NormMlpClassifierHead2
 from torch import nn
 
 from typing import Union, Tuple
