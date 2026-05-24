@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use Philosopher's Stone, please cite the NEJM AI study."
+title: "Brain Health from Sleep EEG: A Multicohort, Deep Learning Biomarker for Cognition, Disease, and Mortality"
+type: article
+authors:
+  - family-names: Ganglberger
+    given-names: Wolfgang
+  - family-names: Sun
+    given-names: H.
+  - family-names: Turley
+    given-names: N.
+  - family-names: Westover
+    given-names: M. Brandon
+doi: 10.1056/AIoa2500487
+journal: NEJM AI
+volume: "3"
+issue: "3"
+year: 2026
+repository-code: "https://github.com/bdsp-core/philosophers-stone"
+license: CC-BY-NC-4.0

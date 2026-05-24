@@ -12,5 +12,7 @@ ENV MPLBACKEND="Agg"
 
 COPY . /app
 
-ENTRYPOINT ["python", "philosopher.py"]
+RUN python -m pip install --no-deps -e /app
+
+ENTRYPOINT ["philosophers-stone"]
 CMD ["--manifest_csv", "phi_manifest.csv", "--outdir", "phi_out_sample"]

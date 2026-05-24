@@ -43,10 +43,12 @@ then
   python -m pip install "setuptools==75.1.0"
 fi
 
+python -m pip install --no-deps -e "$REPO_DIR"
+
 mkdir -p "$OUTDIR"
 
 echo "Running bundled sample manifest with environment '$ENV_NAME'"
-python "$REPO_DIR/philosopher.py" \
+philosophers-stone \
   --manifest_csv "$REPO_DIR/phi_manifest.csv" \
   --outdir "$OUTDIR" \
   "$@"

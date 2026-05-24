@@ -1,0 +1,2 @@
+include README.md LICENSE CITATION.cff CONTRIBUTING.md
+recursive-include tests *.py *.csv

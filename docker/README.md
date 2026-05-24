@@ -1,6 +1,6 @@
 # Docker
 
-Optionally, you can run Philosophers-Stone inside Docker.
+Optionally, you can run Philosopher's Stone inside Docker.
 
 Build the image from the repository root:
 

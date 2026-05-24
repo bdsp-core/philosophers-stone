@@ -1,154 +1,169 @@
 <p align="center">
-  <img src="docs/images/logo.png" alt="Logo" width="350">
+  <img src="docs/images/logo.png" alt="Philosopher's Stone logo" width="350">
 </p>
 
 # Brain-Health Inference from Sleep EEG
 
+**Philosopher's Stone** is an inference tool that converts a single-channel
+overnight sleep EEG into a quantitative index of brain health.
 
-**Philosophers-Stone** is a inference tool that converts a single-channel overnight sleep EEG into a quantitative index of brain health.
-
-It applies a validated, peer-reviewed multi-cohort deep-learning model trained on **36,000 sleep recordings** to estimate cognitive performance, disease likelihoods, and mortality-related physiological patterns.
-
-The tool outputs both a **single Brain Health Score** and a **1024-dimensional latent embedding** suitable for research and biomarker discovery.
+It applies a peer-reviewed multi-cohort deep-learning model trained on 36,000
+sleep recordings to estimate a Brain Health Score, cognition-related outputs,
+disease-related outputs, mortality-related physiological patterns, and a
+1024-dimensional latent embedding for research workflows.
 
 <p align="center">
   <img src="docs/images/overview.jpg" alt="Overview" width="500">
 </p>
 
-## Scientific study
+## Scientific Study
 
-If you use or reference this tool, please cite the peer-reviewed study:
+If you use or reference this tool, please cite:
 
-    Ganglberger, W., Sun, H., Turley, N., ... & Westover, M. B. (2026). 
-    Brain Health from Sleep EEG: A Multicohort, Deep Learning Biomarker for Cognition, Disease, and Mortality. 
+    Ganglberger, W., Sun, H., Turley, N., ... & Westover, M. B. (2026).
+    Brain Health from Sleep EEG: A Multicohort, Deep Learning Biomarker for
+    Cognition, Disease, and Mortality.
     NEJM AI, 3(3), AIoa2500487.
 
-Available [here](https://ai.nejm.org/stoken/default+domain/6TDQIRG3F3D9QQPQ2PGW/full?redirectUri=doi/full/10.1056/AIoa2500487).
+Article DOI: https://doi.org/10.1056/AIoa2500487
 
----
+Repository copies:
 
-## Who is this for?
+- [Paper PDF](Ganglberger_2026_NEJMAI_Brain_Health_from_Sleep_EEG.pdf)
+- [Supplementary Appendix](Ganglberger_2026_NEJMAI_Appendix.pdf)
 
-- Sleep scientists
-- Neurologists and dementia researchers
-- Aging and cognitive-decline investigators
-- Psychiatry researchers
-- Data scientists working with physiological signals
-- Clinical-trial teams exploring EEG-based biomarkers
+## Intended Use
 
----
+This repository is intended for research use by sleep scientists, neurology and
+aging researchers, psychiatry researchers, clinical-trial teams, and data
+scientists working with physiological signals.
 
-## What you get
+This software is not a medical device and is not intended for diagnosis,
+treatment decisions, or clinical use without independent validation and
+appropriate regulatory review.
 
-- **Brain Health Score** (single interpretable metric)
-- **1×1024 latent brain-health embedding**  (AI-derived sleep features)
-- **Predictions** for cognition, disease risk, and mortality-related physiology
-- **Optional outputs**: spectrograms and per-recording JSON summaries
+## Installation
 
----
+Python 3.10+ is required. Conda is recommended because the stack includes
+PyTorch, MNE, scipy, and EEG signal-processing dependencies.
 
-## Requirements
+Run the bundled sample end to end:
 
-- Python 3.10+
-- Conda recommended
+```bash
+./run_sample.sh
+```
 
-Recommended setup:
+For application development:
 
-    ./run_sample.sh
+```bash
+pip install -e .
+```
 
-This creates the recommended environment if needed, downloads the model checkpoint from Hugging Face, and runs the included sample files.
+The package installs a CLI:
 
-### Model file
+```bash
+philosophers-stone --manifest_csv phi_manifest.csv --outdir phi_out
+```
 
-Philosophers-Stone first uses `PHILOSOPHER_MODEL_FILE` when set. In a source
-checkout it then looks for `./model_files/SleepPhilosophersStone.ckpt`;
-package installs fall back to `~/.cache/philosophers-stone/model_files/`.
-If the checkpoint is missing, explicit inference calls can auto-download it from:
+The legacy source-checkout command remains available:
 
-- `https://huggingface.co/wolfgang-ganglberger/philosophers-stone`
+```bash
+python philosopher.py --manifest_csv phi_manifest.csv --outdir phi_out
+```
+
+Docker is also supported. See [docker/README.md](docker/README.md).
+
+## Model Checkpoint
+
+The model checkpoint is about 2.3 GB and is intentionally not tracked in Git.
+
+Checkpoint lookup order:
+
+1. `PHILOSOPHER_MODEL_FILE`, if set.
+2. `./model_files/SleepPhilosophersStone.ckpt` in a source checkout.
+3. `~/.cache/philosophers-stone/model_files/SleepPhilosophersStone.ckpt`.
+
+If the checkpoint is missing, inference can auto-download it from:
+
+```text
+https://huggingface.co/wolfgang-ganglberger/philosophers-stone
+```
 
 ## Inputs
 
-### Manifest CSV
+The CLI takes a manifest CSV with these columns:
 
-A CSV with columns:
+- `filepath`: path to an EEG file.
+- `age`: age in years.
+- `sex`: `0` for female, `1` for male.
 
-- `filepath` (absolute path to EEG file)
-- `age` (years)
-- `sex` (0=female, 1=male)
+Supported EEG formats:
 
-### EEG File Requirements
+| Format | Requirements |
+| --- | --- |
+| HDF5 (`.h5`) | Dataset `signals/c4-m1`, 1-D float array, full night; attributes `sampling_rate=200` and `unit_voltage="uV"`. |
+| EDF (`.edf`) | Must contain a C4-M1 channel or accepted label variant; any sampling rate is resampled to 200 Hz with anti-aliasing. |
 
-Philosophers-Stone accepts **single-channel overnight EEG** in **HDF5 (.h5)** or **EDF (.edf)** format.
-Preferred channel: **C4-M1**.
+Sample full-night EEG files are included under `sample-data/`.
 
-| Format        | Requirements |
-|---------------|-------------|
-| **HDF5 (.h5)** | - Dataset: `signals/c4-m1` (1-D float array, full night) <br> - Attributes: `sampling_rate=200`, `unit_voltage="uV"` <br> - Extra channels/annotations ignored <br> - Manifest uses absolute paths |
-| **EDF (.edf)** | - Must contain a C4-M1 channel (label variants allowed) <br> - Any sampling rate accepted; auto-resampled to 200 Hz with anti-aliasing |
+## Python API
 
-Sample full-night EEG data is included under `./sample-data/`.
+Preferred import path:
 
----
+```python
+from philosophers_stone import Config, infer_brain_health
 
-## Quick start (CLI)
+result = infer_brain_health(
+    eeg_uv,
+    fs_hz=200,
+    age=65,
+    sex=1,
+    file_id="study-001",
+    cfg=Config(),
+)
+```
 
-    python philosopher.py \
-      --manifest_csv phi_manifest.csv
+The legacy import path remains available for compatibility:
 
-Or use the one-command conda bootstrap:
+```python
+from phi_utils.philosopher_utils import Config, infer_brain_health
+```
 
-    ./run_sample.sh
-
-Optionally, you can use Docker; see [the Docker ReadMe](docker/README.md).
-
-## Optional package install
-
-For applications that want to call Philosopher's Stone directly:
-
-    pip install -e .
-
-The package exposes an array-based API:
-
-    from phi_utils.philosopher_utils import Config, infer_brain_health
-
-    result = infer_brain_health(
-        eeg_uv,
-        fs_hz=200,
-        age=65,
-        sex=1,
-        file_id="study-001",
-        cfg=Config(),
-    )
-
-`eeg_uv` must be one overnight EEG channel in microvolts. The API does not
-write output files; callers decide where to persist returned scores, latent
-features, and optional stage probabilities.
-
----
+`eeg_uv` must be one overnight EEG channel in microvolts. The array-based API
+does not write files; callers decide where to persist scores, latent features,
+and optional stage probabilities.
 
 ## Outputs
 
-- **Summary CSV** (`phi_out/phi_results.csv`)
-  Columns include:
-  `file_id, filepath, age, sex, brain_health_score, total_cognition_score, fluid_cognition_score, crystallized_cognition_score, lhl_1…lhl_1024`
+Default summary CSV:
 
-- **Latent embedding (`lhl_1…lhl_1024`)**
-  A 1024-dimensional vector summarizing brain-health-relevant EEG patterns.
+```text
+phi_out/phi_results.csv
+```
 
-- **Optional JSON files** under `phi_out/json/`
-- **Optional spectrograms** under `phi_out/figures/`
+Columns include:
 
----
+```text
+file_id, filepath, age, sex, brain_health_score,
+total_cognition_score, fluid_cognition_score,
+crystallized_cognition_score, lhl_1 ... lhl_1024
+```
 
-## Performance tips
+Optional outputs:
 
-- Use a **GPU** if available
-- Keep `batch_size=1`
+- JSON summaries under `<outdir>/json/`.
+- Spectrogram figures under `<outdir>/figures/`.
 
----
+## Repository Layout
+
+- `src/philosophers_stone/`: runtime package.
+- `src/philosophers_stone/_vendor/timm/`: minimal vendored `timm` runtime subset.
+- `phi_utils/`: source-checkout compatibility shims for historic imports.
+- `sample-data/`: bundled sample EEG files.
+- `paper/`: paper and reproducibility assets, not required at runtime.
+- `docker/`: Docker build and usage files.
 
 ## License
 
-**CC BY-NC 4.0** — Attribution-NonCommercial 4.0 International.
-See the `LICENSE` file for details.
+CC BY-NC 4.0 - Attribution-NonCommercial 4.0 International. See
+[LICENSE](LICENSE).

@@ -8,7 +8,19 @@ version = "0.1.0"
 description = "Brain-health inference from single-channel overnight sleep EEG"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "CC BY-NC 4.0" }
+license = "CC-BY-NC-4.0"
+authors = [
+    { name = "Wolfgang Ganglberger" },
+]
+keywords = ["sleep", "EEG", "brain health", "biomarker", "deep learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
 dependencies = [
     "filelock>=3.13",
     "h5py>=3.7",
@@ -26,16 +38,31 @@ dependencies = [
     "tqdm>=4.66",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "build>=1.2",
+    "pytest>=8.0",
+]
+
+[project.scripts]
+philosophers-stone = "philosophers_stone.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/bdsp-core/philosophers-stone"
+Repository = "https://github.com/bdsp-core/philosophers-stone"
+Issues = "https://github.com/bdsp-core/philosophers-stone/issues"
+Model = "https://huggingface.co/wolfgang-ganglberger/philosophers-stone"
+Article = "https://doi.org/10.1056/AIoa2500487"
+
 [tool.setuptools]
-py-modules = ["philosopher"]
+include-package-data = true
 
 [tool.setuptools.package-dir]
-timm = "pytorch-image-models/timm"
+"" = "src"
 
 [tool.setuptools.packages.find]
-where = [".", "pytorch-image-models"]
-include = ["phi_utils", "timm", "timm.*"]
+where = ["src"]
+include = ["philosophers_stone", "philosophers_stone.*", "phi_utils", "phi_utils.*"]
 
 [tool.setuptools.package-data]
-phi_utils = ["head_weights.csv"]
-timm = ["py.typed", "**/*.txt", "**/*.json", "**/*.csv"]
+philosophers_stone = ["head_weights.csv", "_vendor/timm/LICENSE", "_vendor/timm/README.md"]
