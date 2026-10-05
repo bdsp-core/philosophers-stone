@@ -91,6 +91,11 @@ https://huggingface.co/wolfgang-ganglberger/philosophers-stone
 
 ## Inputs
 
+For HSP/S0001 subject-overlap checks, see the
+[training provenance manifests](paper/provenance/README.md). These include a
+reconstructed training-record list and a conservative subject exclusion list
+with coverage and matching instructions.
+
 The CLI takes a manifest CSV with these columns:
 
 - `filepath`: path to an EEG file.
