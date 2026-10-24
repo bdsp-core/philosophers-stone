@@ -1,0 +1,17 @@
+Workstation storage cleanup, authorized 2026-10-24.
+
+The generated application artifacts formerly at:
+  /home/wolfgang/repos/philosophers-stone/build/
+  /home/wolfgang/repos/philosophers-stone/dist/
+were intentionally deleted to recover approximately 2.25 GiB.
+
+These paths are already ignored by Git. Do not restore historical build
+outputs automatically or interpret their removal as an accidental deletion.
+A new build may regenerate them when explicitly needed for development.
+Source code, sample inputs, active model_files/ checkpoints, and all
+pre-existing uncommitted work were preserved.
+
+The same first pass removed pip download caches and unused Codex versions.
+Receipt: /home/wolfgang/storage-audit-20261024/first-pass-cleanup.json
+Further archival inventory:
+/media/cdac_sleep/WolfgangGanglberger/workstation-archive-2026-10-24/archive-manifest.json
