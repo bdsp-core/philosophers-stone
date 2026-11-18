@@ -98,7 +98,7 @@ with coverage and matching instructions.
 
 The CLI takes a manifest CSV with these columns:
 
-- `filepath`: path to an EEG file.
+- `filepath`: path to an EEG file or a BDSP primary TS-Zarr store.
 - `age`: age in years.
 - `sex`: `0` for female, `1` for male.
 
@@ -108,6 +108,12 @@ Supported EEG formats:
 | --- | --- |
 | HDF5 (`.h5`) | Dataset `signals/c4-m1`, 1-D float array, full night; attributes `sampling_rate=200` and `unit_voltage="uV"`. |
 | EDF (`.edf`) | Must contain a C4-M1 channel or accepted label variant; any sampling rate is resampled to 200 Hz with anti-aliasing. |
+| BDSP TS-Zarr primary (`*_task-psg_eeg.zarr`) | C4-M1, or else the first of C3-M2, F3-M2, F4-M1, O1-M2, O2-M1, EEG, stored in `uV`. Read in place at its native rate and resampled to 200 Hz exactly as `infer_brain_health` resamples an array. Needs `pip install 'philosophers-stone[zarr]'` (the BDSP reader, Python >= 3.11). |
+
+A primary store is the default BDSP recording format. Its calibrated microvolt
+samples are read directly, so scores can differ from the BDSP pipeline's in
+the last float bit: the pipeline converts through the source-declared unit.
+A store whose EEG unit is undeclared is refused rather than rescaled.
 
 Sample full-night EEG files are included under `sample-data/`.
 

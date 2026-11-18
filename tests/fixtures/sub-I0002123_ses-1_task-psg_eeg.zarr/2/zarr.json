@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tsz": {
+      "kind": "continuous",
+      "name": "spo2",
+      "id": "/signals/spo2",
+      "unit": "%",
+      "rate_hz": 1.0,
+      "offset_us": 0,
+      "provenance": {
+        "origin": "signal",
+        "source_path": "/signals/spo2"
+      }
+    }
+  },
+  "zarr_format": 3,
+  "node_type": "group"
+}

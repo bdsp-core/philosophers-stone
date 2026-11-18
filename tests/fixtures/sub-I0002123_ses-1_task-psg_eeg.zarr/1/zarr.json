@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tsz": {
+      "kind": "continuous",
+      "name": "e1-m2",
+      "id": "/signals/e1-m2",
+      "unit": "uV",
+      "rate_hz": 100.0,
+      "offset_us": 0,
+      "provenance": {
+        "origin": "signal",
+        "source_path": "/signals/e1-m2",
+        "unit_converted_from": "mV"
+      }
+    }
+  },
+  "zarr_format": 3,
+  "node_type": "group"
+}

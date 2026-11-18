@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "tsz": {
+      "kind": "event",
+      "name": "expert_1/arousal",
+      "id": "/annotations/expert_1/arousal",
+      "label_names": [
+        "No Arousal",
+        "Arousal"
+      ],
+      "provenance": {
+        "origin": "annotation",
+        "annotator": "expert_1",
+        "label_codes": [
+          0,
+          1
+        ]
+      },
+      "max_duration_us": 5000000
+    }
+  },
+  "zarr_format": 3,
+  "node_type": "group"
+}

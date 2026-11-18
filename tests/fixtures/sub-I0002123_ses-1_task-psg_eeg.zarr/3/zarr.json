@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tsz": {
+      "kind": "continuous",
+      "name": "position",
+      "id": "/signals/position",
+      "unit": "(undeclared)",
+      "rate_hz": 1.0,
+      "offset_us": 0,
+      "provenance": {
+        "origin": "signal",
+        "source_path": "/signals/position"
+      }
+    }
+  },
+  "zarr_format": 3,
+  "node_type": "group"
+}
