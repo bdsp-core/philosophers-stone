@@ -46,6 +46,7 @@ matplotlib.use("Agg")     # headless; avoids GUI backends keeping refs
 plt.ioff()
 
 try:
+    from philosophers_stone.tszarr_input import is_tszarr_store, load_tszarr_signals
     from philosophers_stone.philosopher_utils import (
         Config as PhilosopherConfig,
         _compute_wavelet_specs,
@@ -108,8 +109,12 @@ class SleepEEGDataset(Dataset):
         sex = int(row["sex"])
         file_id = os.path.basename(path_file)
 
-        # 1. Load + preprocess EEG
-        signals, fs_eeg = _load_eeg(path_file, self.cfg)
+        # 1. Load + preprocess EEG (a BDSP primary TS-Zarr store, a prepared
+        #    H5 or an EDF)
+        if is_tszarr_store(path_file):
+            signals, fs_eeg = load_tszarr_signals(path_file, self.cfg)
+        else:
+            signals, fs_eeg = _load_eeg(path_file, self.cfg)
         signals = preprocess_filter(signals, bandpass_high=self.cfg.f_high)
 
         # 2. Spectrogram

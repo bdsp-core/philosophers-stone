@@ -1,0 +1,32 @@
+{
+  "attributes": {
+    "tsz": {
+      "kind": "event",
+      "name": "expert_1/stage",
+      "id": "/annotations/expert_1/stage",
+      "label_names": [
+        "Unknown/Unscored",
+        "N3",
+        "N2",
+        "N1",
+        "REM",
+        "Wake"
+      ],
+      "provenance": {
+        "origin": "annotation",
+        "annotator": "expert_1",
+        "label_codes": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      "max_duration_us": 60000000
+    }
+  },
+  "zarr_format": 3,
+  "node_type": "group"
+}

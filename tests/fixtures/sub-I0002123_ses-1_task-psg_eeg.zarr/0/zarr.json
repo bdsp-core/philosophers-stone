@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tsz": {
+      "kind": "continuous",
+      "name": "c4-m1",
+      "id": "/signals/c4-m1",
+      "unit": "uV",
+      "rate_hz": 100.0,
+      "offset_us": 0,
+      "provenance": {
+        "origin": "signal",
+        "source_path": "/signals/c4-m1"
+      }
+    }
+  },
+  "zarr_format": 3,
+  "node_type": "group"
+}
